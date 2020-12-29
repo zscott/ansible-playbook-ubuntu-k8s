@@ -1,0 +1,38 @@
+---
+ - hosts: all
+   vars:
+     - provision_password: '$6$BNfeXDIoOyUa.$CgPRpO.jnke/ZwhIUQg0KFqsS/MGU93nImHK2gPGQrlMzfBzMvSKR4WoaQzO1.5T/IGLRFtlg92xE6Tbfh59R1'
+   gather_facts: no
+   remote_user: root
+   tasks:
+     - name: Add a new user named provision
+       user:
+         name=provision
+         password={{ provision_password }}
+
+     - name: Add provision user to the sudoers
+       copy:
+         dest: "/etc/sudoers.d/provision"
+         content: "provision  ALL=(ALL)  NOPASSWD:  ALL"
+
+     - name: Deploy SSH Key
+       authorized_key: user=provision
+                       key="{{ lookup('file', '/home/provision/.ssh/id_rsa.pub') }}"
+                       state=present
+
+     - name: Disable Password Authentication
+       lineinfile:
+                dest=/etc/ssh/sshd_config
+                regexp='^PasswordAuthentication'
+                line="PasswordAuthentication no"
+                state=present
+                backup=yes
+       notify:
+         - restart ssh
+
+   handlers:
+   - name: restart ssh
+     service:
+       name=sshd
+       state=restarted
+ 
